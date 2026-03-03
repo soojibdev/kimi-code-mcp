@@ -15,6 +15,19 @@ MCP server that connects [Kimi Code](https://www.kimi.com/code) (K2.5, 256K cont
 > [!TIP]
 > **Stop paying Claude to read files.** Kimi K2.5 delivers frontier-class code intelligence at a fraction of the cost (see chart above). Delegate bulk codebase scanning to Kimi (256K context, near-zero cost) and let Claude focus on what it does best — reasoning, decisions, and precise code edits. One `kimi_analyze` call can replace 50+ file reads.
 
+## What is Kimi Code?
+
+[**Kimi Code**](https://www.kimi.com/code/en) is an AI code agent by Moonshot AI, powered by the **Kimi K2.5** model (1T MoE, 256K context). It works across Terminal, IDE, and CLI — writing, debugging, refactoring, and analyzing code autonomously.
+
+Key specs:
+- **256K token context** — reads entire codebases in one pass
+- **Parallel agent spawning** — handles concurrent tasks
+- **Shell, file, and web access** — full developer toolchain
+- **Install**: `curl -L code.kimi.com/install.sh | bash`
+
+> [!WARNING]
+> **Kimi Code membership required.** This MCP server calls the Kimi CLI under the hood, which requires an active [Kimi Code plan](https://www.kimi.com/code/en). Make sure you have a valid subscription and have run `kimi login` before use.
+
 ## Quick Start
 
 ```bash
