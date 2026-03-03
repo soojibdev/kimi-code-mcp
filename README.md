@@ -27,6 +27,15 @@ Key specs:
 
 > [!WARNING]
 > **Kimi Code membership required.** This MCP server calls the Kimi CLI under the hood, which requires an active [Kimi Code plan](https://www.kimi.com/code/en). Make sure you have a valid subscription and have run `kimi login` before use.
+>
+> | Plan | Price | Notes |
+> |------|-------|-------|
+> | **Moderato** | **$0** (7-day free trial) | Then $19/mo. Good for trying it out |
+> | **Allegretto** | $39/mo | Recommended — higher weekly quota + concurrency |
+> | **Allegro** | $99/mo | For daily, heavy-duty development |
+> | **Vivace** | $199/mo | Max quota for large codebases |
+>
+> Annual billing saves up to $480. All plans include [Kimi membership benefits](https://www.kimi.com/code/en).
 
 ## Quick Start
 
