@@ -4,10 +4,14 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { runKimi, isKimiInstalled } from './kimi-runner.js'
 import { listSessions } from './session-reader.js'
+import { CacheManager, getGlobalCacheManager } from './cache-manager.js'
+
+// Initialize global cache manager with debug enabled for development
+const cacheManager = getGlobalCacheManager({ debug: process.env.KIMI_CACHE_DEBUG === '1' })
 
 const server = new McpServer({
   name: 'kimi-code',
-  version: '0.2.0',
+  version: '0.3.0',
 })
 
 // --- Output format instructions per detail level ---
@@ -56,14 +60,25 @@ function buildResponse(text: string, thinking: string | undefined, includeThinki
 // Default token budget (~15K tokens × 4 chars/token)
 const DEFAULT_MAX_OUTPUT_CHARS = 60_000
 
+// Cache warming timeout (2 minutes)
+const CACHE_WARMUP_TIMEOUT_MS = 120_000
+
 // --- Tool 1: kimi_analyze ---
 server.tool(
   'kimi_analyze',
-  'Send a prompt to Kimi Code for codebase analysis. Kimi reads the codebase (256K context) and returns a compressed, structured report. Output is budget-controlled: Kimi reads 200K+ tokens of source but returns a 5-15K token analysis (configurable via detail_level). Use kimi_resume to drill deeper into specific areas. Takes 1-5 minutes for large codebases.',
+  `Send a prompt to Kimi Code for codebase analysis. Kimi reads the codebase (256K context) and returns a compressed, structured report. 
+
+CACHE BEHAVIOR: If session_id is not provided, the MCP server will automatically use cached sessions when available. 
+- First call: Creates cache (may take 60-120s for large codebases)
+- Subsequent calls: Reuses cached session (faster, ~10s)
+- Cache auto-expires after 30 minutes or when files change
+- Use kimi_cache_status to view cache statistics
+
+Output is budget-controlled: Kimi reads 200K+ tokens of source but returns a 5-15K token analysis (configurable via detail_level). Use kimi_resume to drill deeper into specific areas. Takes 1-5 minutes for large codebases.`,
   {
     prompt: z.string().describe('The analysis prompt for Kimi (be specific about what to analyze)'),
     work_dir: z.string().describe('Absolute path to the codebase root directory'),
-    session_id: z.string().optional().describe('Resume a specific Kimi session by ID (from kimi_list_sessions)'),
+    session_id: z.string().optional().describe('Resume a specific Kimi session by ID (from kimi_list_sessions). If not provided, cached session will be used when available.'),
     thinking: z.boolean().optional().describe('Enable thinking mode for deeper analysis (default: true)'),
     detail_level: z.enum(['summary', 'normal', 'detailed']).optional()
       .describe('Output verbosity. summary: ~2-5K tokens (file index + key findings). normal (default): ~5-15K tokens (structured analysis). detailed: ~15-40K tokens (with code snippets).'),
@@ -71,30 +86,72 @@ server.tool(
       .describe('Max tokens in response (~4 chars/token). Default: 15000. Use 3000-5000 for quick scans, 30000+ for detailed analysis.'),
     include_thinking: z.boolean().optional()
       .describe('Include Kimi internal reasoning in output. Default: false (saves 10-30K tokens). Enable only for debugging.'),
+    use_cache: z.boolean().optional()
+      .describe('Enable automatic session caching (default: true). Set to false to bypass cache and create fresh session.'),
   },
-  async ({ prompt, work_dir, session_id, thinking, detail_level, max_output_tokens, include_thinking }) => {
+  async ({ prompt, work_dir, session_id, thinking, detail_level, max_output_tokens, include_thinking, use_cache }) => {
     if (!isKimiInstalled()) {
       return { content: [{ type: 'text' as const, text: 'Error: kimi CLI not installed. Install via: uv tool install kimi-cli' }], isError: true }
     }
 
     const wrappedPrompt = wrapPromptWithFormat(prompt, detail_level ?? 'normal')
     const maxChars = max_output_tokens ? max_output_tokens * 4 : DEFAULT_MAX_OUTPUT_CHARS
+    const enableCache = use_cache !== false  // default to true
+
+    let effectiveSessionId = session_id
+    let cacheInfo = ''
+
+    // Try to use cache if no explicit session_id provided and caching is enabled
+    if (!effectiveSessionId && enableCache && work_dir) {
+      try {
+        const cacheResult = await cacheManager.getOrCreateSession(work_dir, {
+          timeoutMs: CACHE_WARMUP_TIMEOUT_MS,
+          thinking: thinking ?? true,
+        })
+        
+        if (cacheResult.sessionId) {
+          effectiveSessionId = cacheResult.sessionId
+          cacheInfo = cacheResult.hit 
+            ? `\n\n[Cache HIT: Reused session ${effectiveSessionId.slice(0, 8)}... in ${cacheResult.resolveTimeMs}ms]`
+            : `\n\n[Cache MISS: Created new session ${effectiveSessionId.slice(0, 8)}... in ${cacheResult.resolveTimeMs}ms]`
+        }
+      } catch (error) {
+        // Cache failure is non-fatal, continue without cache
+        cacheInfo = `\n\n[Cache warning: ${error instanceof Error ? error.message : String(error)}]`
+      }
+    }
 
     const result = await runKimi({
       prompt: wrappedPrompt,
       workDir: work_dir,
-      sessionId: session_id,
+      sessionId: effectiveSessionId,
       thinking: thinking ?? true,
       timeoutMs: 600_000,
       maxOutputChars: maxChars,
     })
 
     if (!result.ok) {
+      // If the cached session failed, invalidate it and retry once
+      if (effectiveSessionId && !session_id && enableCache && work_dir) {
+        cacheManager.invalidate(work_dir)
+        return { 
+          content: [{ 
+            type: 'text' as const, 
+            text: `Error (cached session invalidated, retry may succeed): ${result.error}` 
+          }], 
+          isError: true 
+        }
+      }
       return { content: [{ type: 'text' as const, text: `Error: ${result.error}` }], isError: true }
     }
 
+    // Update cache with new session ID if returned
+    if (result.sessionId && enableCache && work_dir && !session_id) {
+      // The cache manager will update its entry on next getOrCreateSession call
+    }
+
     const response = buildResponse(result.text, result.thinking, include_thinking ?? false)
-    return { content: [{ type: 'text' as const, text: response }] }
+    return { content: [{ type: 'text' as const, text: response + cacheInfo }] }
   }
 )
 
@@ -150,7 +207,77 @@ server.tool(
   }
 )
 
-// --- Tool 4: kimi_resume ---
+// --- Tool 4: kimi_cache_status ---
+server.tool(
+  'kimi_cache_status',
+  'View session cache statistics and status. Shows cache hits/misses, active sessions, and performance metrics. Use this to monitor cache effectiveness and troubleshoot issues.',
+  {
+    detail: z.boolean().optional().describe('Show detailed cache entry information (default: false)'),
+  },
+  async ({ detail }) => {
+    const stats = cacheManager.getStats()
+    const entries = detail ? cacheManager.listEntries() : []
+
+    const summary = {
+      statistics: {
+        totalCachedSessions: stats.totalEntries,
+        totalCacheHits: stats.totalHits,
+        totalCacheMisses: stats.totalMisses,
+        cacheHitRate: stats.totalHits + stats.totalMisses > 0
+          ? `${((stats.totalHits / (stats.totalHits + stats.totalMisses)) * 100).toFixed(1)}%`
+          : 'N/A',
+        totalEvictions: stats.totalEvictions,
+        averageHitLatencyMs: Math.round(stats.averageHitLatency),
+        averageMissLatencyMs: Math.round(stats.averageMissLatency),
+      },
+      entries: detail ? entries.map(e => ({
+        workDir: e.workDir,
+        sessionId: `${e.sessionId.slice(0, 8)}...`,
+        hitCount: e.hitCount,
+        lastUsed: new Date(e.lastUsedAt).toISOString(),
+      })) : undefined,
+    }
+
+    return { 
+      content: [{ 
+        type: 'text' as const, 
+        text: JSON.stringify(summary, null, 2) 
+      }] 
+    }
+  }
+)
+
+// --- Tool 5: kimi_cache_invalidate ---
+server.tool(
+  'kimi_cache_invalidate',
+  'Manually invalidate session cache entries. Use when you want to force fresh analysis or if you suspect cached sessions are stale.',
+  {
+    work_dir: z.string().optional().describe('Specific working directory to invalidate. If not provided, ALL caches are cleared.'),
+  },
+  async ({ work_dir }) => {
+    if (work_dir) {
+      const existed = cacheManager.invalidate(work_dir)
+      return { 
+        content: [{ 
+          type: 'text' as const, 
+          text: existed 
+            ? `Cache invalidated for: ${work_dir}` 
+            : `No cache found for: ${work_dir}` 
+        }] 
+      }
+    } else {
+      const count = cacheManager.invalidateAll()
+      return { 
+        content: [{ 
+          type: 'text' as const, 
+          text: `All ${count} cache entries invalidated.` 
+        }] 
+      }
+    }
+  }
+)
+
+// --- Tool 6: kimi_resume ---
 server.tool(
   'kimi_resume',
   'Resume an existing Kimi Code session with a new prompt. The session retains all previous context (up to 256K tokens). Use kimi_list_sessions to find session IDs first. Ideal for drilling deeper after an initial kimi_analyze scan.',

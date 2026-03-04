@@ -24,12 +24,36 @@ export interface KimiResult {
   text: string
   thinking?: string
   error?: string
+  /** Session ID if available (for caching) */
+  sessionId?: string
 }
 
 const KIMI_BIN = path.join(os.homedir(), '.local/bin/kimi')
 
 export function isKimiInstalled(): boolean {
   return fs.existsSync(KIMI_BIN)
+}
+
+/**
+ * Extract session ID from Kimi's stderr output.
+ * Kimi outputs session info to stderr in formats like:
+ * - "Session ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+ * - "session_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+ */
+function extractSessionId(stderr: string): string | undefined {
+  // Match various session ID formats
+  const patterns = [
+    /Session ID:\s*([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i,
+    /session[_-]?id[:\s]+([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i,
+    /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/,
+  ]
+
+  for (const pattern of patterns) {
+    const match = stderr.match(pattern)
+    if (match) return match[1]
+  }
+
+  return undefined
 }
 
 /**
@@ -146,6 +170,7 @@ export function runKimi(config: KimiRunConfig): Promise<KimiResult> {
       }
 
       const parsed = parseKimiOutput(stdout)
+      const sessionId = extractSessionId(stderr)
       const maxChars = config.maxOutputChars ?? 60_000
 
       if (parsed.text.length > maxChars) {
@@ -155,7 +180,7 @@ export function runKimi(config: KimiRunConfig): Promise<KimiResult> {
         parsed.thinking = parsed.thinking.slice(0, Math.floor(maxChars / 2)) + '\n[THINKING TRUNCATED]'
       }
 
-      resolve({ ok: true, ...parsed })
+      resolve({ ok: true, ...parsed, sessionId })
     })
 
     proc.on('error', (err) => {
