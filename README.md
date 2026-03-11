@@ -40,8 +40,9 @@ Key specs:
 ## Quick Start
 
 ```bash
-# 1. Install Kimi CLI
-uv tool install kimi-cli && kimi login
+# 1. Install Kimi CLI and log in
+curl -L code.kimi.com/install.sh | bash
+kimi login
 
 # 2. Install via npm
 npm install -g kimi-mcp-server
@@ -79,6 +80,122 @@ cd kimi-code-mcp && npm install && npm run build
 ```
 
 Run `/mcp` in Claude Code to verify — you should see `kimi-code` with 4 tools.
+
+## Kimi Code API Setup
+
+> [!NOTE]
+> **Kimi Code API and Moonshot API are separate providers** — their API keys are not interchangeable.
+
+There are two ways to configure the Kimi Code API for the CLI:
+
+### Option 1: OAuth Login (Recommended)
+
+In the Kimi Code CLI shell, run:
+
+```bash
+kimi
+```
+
+Then use the `/login` (or `/setup`) command:
+
+```
+/login
+```
+
+1. Select **Kimi Code** as the platform
+2. Your browser opens for OAuth authorization
+3. Config is saved automatically to `~/.kimi/config.toml`
+
+### Option 2: Manual API Key Configuration
+
+#### Get your API Key
+
+1. Visit [code.kimi.com](https://code.kimi.com)
+2. Sign in → **Settings** → **API Keys**
+3. Create a new key (starts with `sk-`, shown only once)
+
+#### Edit config file
+
+```bash
+nano ~/.kimi/config.toml
+```
+
+Add:
+
+```toml
+[providers.kimi-code]
+type = "kimi"
+base_url = "https://api.kimi.com/coding/v1"
+api_key = "sk-your-api-key"
+
+[models.kimi-for-coding]
+provider = "kimi-code"
+model = "kimi-for-coding"
+max_context_size = 262144
+capabilities = ["thinking"]
+
+[defaults]
+model = "kimi-for-coding"
+```
+
+#### Using environment variables (recommended for security)
+
+```bash
+# Add to ~/.zshrc (macOS) or ~/.bashrc (Linux)
+export KIMICODE_API_KEY="sk-your-api-key"
+```
+
+Then reference it in `config.toml`:
+
+```toml
+[providers.kimi-code]
+type = "kimi"
+base_url = "https://api.kimi.com/coding/v1"
+api_key = "${KIMICODE_API_KEY}"
+```
+
+### Multi-provider config example
+
+You can configure both Kimi Code and Moonshot side by side:
+
+```toml
+[providers.kimi-code]
+type = "kimi"
+base_url = "https://api.kimi.com/coding/v1"
+api_key = "${KIMICODE_API_KEY}"
+
+[providers.moonshot-cn]
+type = "kimi"
+base_url = "https://api.moonshot.cn/v1"
+api_key = "${MOONSHOT_API_KEY}"
+
+[models.kimi-for-coding]
+provider = "kimi-code"
+model = "kimi-for-coding"
+max_context_size = 262144
+capabilities = ["thinking"]
+
+[models.kimi-k2]
+provider = "moonshot-cn"
+model = "kimi-k2-0905-preview"
+max_context_size = 256000
+capabilities = ["thinking"]
+
+[defaults]
+model = "kimi-for-coding"
+```
+
+Switch models at any time with `/model` or `/model kimi-k2` in the CLI.
+
+### Kimi Code vs Moonshot
+
+| Feature | Kimi Code | Moonshot |
+|---------|-----------|----------|
+| Focus | Optimized for coding | General-purpose chat |
+| Endpoint | `api.kimi.com/coding/v1` | `api.moonshot.cn/v1` |
+| API Key | Separate — apply at [code.kimi.com](https://code.kimi.com) | Separate |
+| SearchWeb / FetchURL | Built-in | Not available |
+| Context | 262K | 256K |
 
 ## What You Can Do
 
