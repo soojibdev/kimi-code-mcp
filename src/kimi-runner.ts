@@ -64,11 +64,19 @@ export async function getKimiStatus(): Promise<KimiStatus> {
     status.version = '(unable to detect)'
   }
 
-  // Check authentication by looking for config
+  // Check authentication by looking for credentials
   try {
-    const kimiConfigPath = path.join(os.homedir(), '.kimi', 'kimi.json')
-    if (fs.existsSync(kimiConfigPath)) {
-      const raw = fs.readFileSync(kimiConfigPath, 'utf-8')
+    // Kimi CLI v1.12+ stores OAuth credentials in ~/.kimi/credentials/kimi-code.json
+    const credentialsPath = path.join(os.homedir(), '.kimi', 'credentials', 'kimi-code.json')
+    const legacyConfigPath = path.join(os.homedir(), '.kimi', 'kimi.json')
+
+    if (fs.existsSync(credentialsPath)) {
+      const raw = fs.readFileSync(credentialsPath, 'utf-8')
+      const creds = JSON.parse(raw)
+      status.authenticated = !!(creds.access_token || creds.refresh_token)
+    } else if (fs.existsSync(legacyConfigPath)) {
+      // Fallback: older versions stored tokens in kimi.json
+      const raw = fs.readFileSync(legacyConfigPath, 'utf-8')
       const config = JSON.parse(raw)
       status.authenticated = !!(config.access_token || config.auth_token || config.api_key)
     } else {

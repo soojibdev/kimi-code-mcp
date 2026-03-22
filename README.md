@@ -79,7 +79,7 @@ cd kimi-code-mcp && npm install && npm run build
 }
 ```
 
-Run `/mcp` in Claude Code to verify — you should see `kimi-code` with 4 tools.
+Run `/mcp` in Claude Code to verify — you should see `kimi-code` with 7 tools.
 
 ## Kimi Code API Setup
 
@@ -299,6 +299,9 @@ Each review session can be **resumed** (`kimi_resume`) — Kimi retains up to 25
 | `kimi_query` | Quick programming questions, no codebase context | 2 min |
 | `kimi_list_sessions` | List existing Kimi sessions with metadata | instant |
 | `kimi_resume` | Resume a previous session (up to 256K token context) | 10 min |
+| `kimi_status` | Check CLI installation, version, and authentication status | instant |
+| `kimi_cache_status` | View session cache statistics and performance metrics | instant |
+| `kimi_cache_invalidate` | Manually invalidate cached sessions (by dir or all) | instant |
 
 ### Output Control Parameters
 
