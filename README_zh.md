@@ -345,6 +345,25 @@ Claude token 成本:  $$$                          $
 └──────────────┘              └──────────────┘               └──────────────┘
 ```
 
+### CLI 呼叫參考
+
+MCP 伺服器以非互動（print）模式呼叫 Kimi CLI：
+
+```bash
+kimi --work-dir <path> --print -p "<prompt>"
+```
+
+| Flag | 用途 |
+|------|------|
+| `--print` | 非互動模式——輸出結果後直接退出（subprocess 必須） |
+| `-p` / `--prompt` | 直接傳入 prompt（跳過互動式 shell） |
+| `--work-dir` / `-w` | 設定 codebase 根目錄 |
+| `-S <id>` | 用 session ID 恢復之前的 session |
+| `--no-thinking` | 關閉 thinking 模式 |
+
+> [!NOTE]
+> **`kimi analyze` subcommand 不存在。** MCP tool 命名為 `kimi_analyze`，但底層 CLI 使用上述 flags。如需直接呼叫 Kimi（除錯或腳本用途），請使用以上語法。
+
 ## 進階配置
 
 開發模式（自動重編譯）：

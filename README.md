@@ -361,6 +361,25 @@ Claude token cost:  $$$                          $
 4. The result is parsed from Kimi's JSON output and returned to Claude Code
 5. Claude acts on the structured results — edits, plans, or further analysis
 
+### CLI Invocation Reference
+
+The MCP server calls the Kimi CLI in non-interactive (print) mode:
+
+```bash
+kimi --work-dir <path> --print -p "<prompt>"
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--print` | Non-interactive mode — outputs result and exits (required for subprocess use) |
+| `-p` / `--prompt` | Pass prompt directly (bypasses interactive shell) |
+| `--work-dir` / `-w` | Set codebase root directory |
+| `-S <id>` | Resume a specific session by ID |
+| `--no-thinking` | Disable thinking mode |
+
+> [!NOTE]
+> There is no `kimi analyze` subcommand. The MCP tool is named `kimi_analyze`, but the underlying CLI uses the flags above. Use this syntax to call Kimi directly for debugging or scripting.
+
 ## Advanced Setup
 
 For development (auto-recompile on changes):

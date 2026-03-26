@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Added **CLI Invocation Reference** section to both READMEs clarifying the exact flags the MCP server uses (`--print -p`) and explicitly noting that `kimi analyze` subcommand does not exist
+
 ## [0.3.0] - 2026-03-04
 
 ### Added (Phase 1: Context Caching)
