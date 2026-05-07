@@ -424,3 +424,50 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 ## License
 
 MIT
+
+---
+
+## 한국어 설치 가이드 (soojibdev fork)
+
+이 레포는 [howardpen9/kimi-code-mcp](https://github.com/howardpen9/kimi-code-mcp) 의 fork입니다.
+upstream 7개 도구에 `kimi_implement` (자율 코딩), `kimi_review` (어드버서리얼 리뷰) 2개를 추가합니다.
+
+### 한 번만 하는 설정
+
+```bash
+# 1. Kimi CLI 설치 + 로그인 (Kimi Code 구독 필요)
+curl -L code.kimi.com/install.sh | bash
+kimi login   # 브라우저 OAuth
+
+# 2. MCP 서버 설치
+npm install -g github:soojibdev/kimi-code-mcp
+
+# 3. ~/.claude/mcp.json 에 추가
+# {
+#   "mcpServers": {
+#     "kimi-code": { "command": "kimi-mcp-server" }
+#   }
+# }
+
+# 4. 슬래시 명령 동기화
+git clone https://github.com/soojibdev/kimi-code-mcp.git ~/code/kimi-code-mcp
+ln -s ~/code/kimi-code-mcp/commands ~/.claude/commands/kimi
+```
+
+### 검증
+
+Claude Code 재시작 후 `/mcp` 입력 → `kimi-code` 서버에 도구 9개가 보이면 완료.
+
+### 새 도구 사용 예시
+
+**kimi_implement** — Kimi가 파일을 직접 편집 (기본값: 커밋 안 함):
+
+```
+/kimi:implement src/auth.ts에 JWT 만료 검증 로직 추가
+```
+
+**kimi_review** — 읽기 전용 어드버서리얼 리뷰:
+
+```
+/kimi:review src/payment/ 결제 플로우 보안 취약점 위주로
+```
