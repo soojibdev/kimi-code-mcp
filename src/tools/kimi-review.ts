@@ -19,14 +19,14 @@ RULES:
 - Be specific: reference file paths and line numbers where relevant
 - Prioritise actionable, high-signal findings over style nitpicks`
 
-const FOCUS_INSTRUCTIONS: Record<string, string> = {
+const FOCUS_INSTRUCTIONS: Record<'security' | 'performance' | 'maintainability' | 'all', string> = {
   security: '\nFOCUS: Security vulnerabilities, injection risks, authentication flaws, data exposure, insecure defaults.',
   performance: '\nFOCUS: Performance bottlenecks, inefficient algorithms, memory leaks, N+1 queries, unnecessary blocking.',
   maintainability: '\nFOCUS: Code clarity, coupling, DRY violations, poor naming, missing tests, documentation gaps.',
   all: '\nFOCUS: Security, performance, and maintainability — balance coverage across all three.',
 }
 
-const DETAIL_FORMATS: Record<string, string> = {
+const DETAIL_FORMATS: Record<'summary' | 'normal' | 'detailed', string> = {
   summary: '\nOUTPUT: Maximum ~2000 words. Bullet points only. No code snippets.',
   normal: '\nOUTPUT: Maximum ~5000 words. Use sections. Include file:line references.',
   detailed: '\nOUTPUT: Maximum ~15000 words. Include relevant code snippets (under 30 lines each).',
@@ -42,7 +42,7 @@ STRUCTURE YOUR RESPONSE AS:
 #### Minor (Nice to Have)
 ### Recommendations`
 
-const MAX_CHARS_BY_DETAIL: Record<string, number> = {
+const MAX_CHARS_BY_DETAIL: Record<'summary' | 'normal' | 'detailed', number> = {
   summary: 8_000,
   normal: 20_000,
   detailed: 60_000,
