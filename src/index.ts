@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { runKimi, isKimiInstalled, getKimiStatus } from './kimi-runner.js'
 import { listSessions } from './session-reader.js'
 import { CacheManager, getGlobalCacheManager } from './cache-manager.js'
+import { kimiImplementSchema, kimiImplementHandler } from './tools/kimi-implement.js'
+import { kimiReviewSchema, kimiReviewHandler } from './tools/kimi-review.js'
 
 // Initialize global cache manager with debug enabled for development
 const cacheManager = getGlobalCacheManager({ debug: process.env.KIMI_CACHE_DEBUG === '1' })
@@ -364,6 +366,22 @@ server.tool(
       isError: !status.installed,
     }
   }
+)
+
+// --- Tool 8: kimi_implement ---
+server.tool(
+  'kimi_implement',
+  'Delegate autonomous file editing to Kimi (256K context). Kimi reads the codebase, implements the task, and edits files in the working directory. By default does NOT commit — user reviews and commits. Set allow_commit=true to let Kimi commit. Requires clean git status (no uncommitted changes).',
+  kimiImplementSchema,
+  kimiImplementHandler,
+)
+
+// --- Tool 9: kimi_review ---
+server.tool(
+  'kimi_review',
+  'Adversarial code review by Kimi. Reads specified files/directories and returns structured findings (Critical/Important/Minor). Read-only — does not modify files. Use focus parameter to target security, performance, or maintainability.',
+  kimiReviewSchema,
+  kimiReviewHandler,
 )
 
 // --- Start server ---
