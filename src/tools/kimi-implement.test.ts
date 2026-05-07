@@ -67,4 +67,10 @@ describe('kimiImplementHandler', () => {
     expect(result.isError).toBeUndefined()
     expect(result.content[0].text).toBe('hello() added')
   })
+
+  it('converts max_output_tokens to maxOutputChars for runKimi', async () => {
+    await kimiImplementHandler({ task: 'add hello()', work_dir: '/tmp/repo', max_output_tokens: 1000 })
+    const config = vi.mocked(runKimi).mock.calls[0][0]
+    expect(config.maxOutputChars).toBe(4000)
+  })
 })

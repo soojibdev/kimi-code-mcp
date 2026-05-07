@@ -7,7 +7,7 @@ export const kimiImplementSchema = {
     'What to implement — be specific about target files, expected behavior, and acceptance criteria'
   ),
   work_dir: z.string().describe('Absolute path to the codebase root directory'),
-  allow_commit: z.boolean().optional().describe(
+  allow_commit: z.boolean().default(false).describe(
     'Allow Kimi to git commit after editing (default: false — file edits only, user reviews and commits)'
   ),
   max_output_tokens: z.number().optional().describe(
